@@ -26,8 +26,9 @@ services:
   frontend:
     build: ./frontend/
     env_file: .env
+    command: cp -r /app/build/. /static/
     volumes:
-      - static:/app/static 
+      - static:/static
     depends_on:
       - backend
     restart: always
@@ -38,8 +39,8 @@ services:
     ports:
       - 9000:80
     volumes:
-      - static:/app/static 
-      - media:/app/media
+      - static:/static
+      - media:/media
     depends_on:
       - backend
       - frontend
