@@ -28,7 +28,6 @@ jobs:
       - name: Test backend
         run: |
           cd backend
-          export DATABASE_URL=sqlite:///test_db.sqlite3
           python manage.py test
 
       - name: Test frontend
@@ -77,13 +76,42 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: build_and_push_to_docker_hub
-    if: false
     steps:
-      - run: echo "Деплой отключен"
+      - uses: actions/checkout@v3
+
+      - name: Copy files via ssh
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          source: "docker-compose.yml,nginx/nginx.conf"
+          target: "kittygram"
+
+      - name: Deploy on server
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          script: |
+            cd kittygram
+            sudo docker compose pull
+            sudo docker compose down
+            sudo docker compose up -d
+            sudo docker compose exec backend python manage.py migrate
+            sudo docker compose exec backend python manage.py collectstatic --noinput
+            sudo docker system prune -af
 
   send_message:
     runs-on: ubuntu-latest
     needs: deploy
-    if: false
     steps:
-      - run: echo "Отправка сообщений отключена"
+      - name: Send message
+        uses: appleboy/telegram-action@v0.1.1
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: Деплой Kittygram успешно выполнен!
